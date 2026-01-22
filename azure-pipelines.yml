@@ -10,6 +10,10 @@ steps:
   inputs:
     BrowserStackServiceEndPoint: 'browserstack-connection-yashvi'
 
+- script: |
+    echo "BS USER = $BROWSERSTACK_USERNAME"
+  displayName: 'Debug BrowserStack Username'
+
 # Run TestNG suite in parallel on ONE device
 - task: Maven@3
   displayName: 'Run TestNG parallel suite (single device)'
