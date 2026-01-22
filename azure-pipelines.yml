@@ -4,9 +4,6 @@ trigger:
 pool:
   vmImage: 'ubuntu-latest'
 
-variables:
-  BROWSERSTACK_CONFIG_FILE: 'src/test/resources/conf/capabilities/browserstack-parallel.yml'
-
 steps:
 # 1️⃣ BrowserStack setup
 - task: BrowserStackConfig@0
@@ -19,4 +16,6 @@ steps:
   inputs:
     mavenPomFile: 'pom.xml'
     goals: 'clean test'
-    options: '-P bstack-parallel'
+    options: >
+      -P bstack-parallel
+      -Dbrowserstack.config=src/test/resources/conf/capabilities/browserstack-parallel.yml
