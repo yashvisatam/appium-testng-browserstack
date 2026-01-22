@@ -5,12 +5,12 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-# 1️⃣ BrowserStack setup
+# BrowserStack setup
 - task: BrowserStackConfig@0
   inputs:
     BrowserStackServiceEndPoint: 'browserstack-connection-yashvi'
 
-# 2️⃣ Run TestNG suite in parallel on ONE device
+# Run TestNG suite in parallel on ONE device
 - task: Maven@3
   displayName: 'Run TestNG parallel suite (single device)'
   inputs:
@@ -19,3 +19,9 @@ steps:
     options: >
       -P bstack-parallel
       -Dbrowserstack.config=src/test/resources/conf/capabilities/browserstack-parallel.yml
+  
+# Publish BrowserStack App Automate results
+- task: BrowserStackResults@1
+  displayName: 'Publish BrowserStack App Automate results'
+  inputs:
+    product: 'automate'
