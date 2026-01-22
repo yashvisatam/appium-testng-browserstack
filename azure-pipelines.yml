@@ -19,6 +19,7 @@ steps:
     options: >
       -P bstack-parallel
       -Dbrowserstack.config=src/test/resources/conf/capabilities/browserstack-parallel.yml
+      -X
   
 # Publish BrowserStack App Automate results
 - task: BrowserStackResults@1
