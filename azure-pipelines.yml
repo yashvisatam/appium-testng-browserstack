@@ -8,11 +8,7 @@ steps:
 # BrowserStack setup
 - task: BrowserStackConfig@0
   inputs:
-    BrowserStackServiceEndPoint: 'browserstack-connection-yashvi'
-
-- script: |
-    echo "BS USER = $BROWSERSTACK_USERNAME"
-  displayName: 'Debug BrowserStack Username'
+    BrowserStackServiceEndPoint: 'browserstack-connection-yashvi-dedicated'
 
 # Run TestNG suite in parallel on ONE device
 - task: Maven@3
