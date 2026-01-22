@@ -1,0 +1,55 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+# Manual trigger – ideal for demos
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - group: browserstack-secrets
+
+steps:
+  # Install Node.js
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '18.x'
+    displayName: Install Node.js
+
+  # Install dependencies
+  - script: |
+      cd android
+      npm install
+    displayName: Install npm dependencies
+
+  # BrowserStack setup (Azure DevOps extension)
+  - task: BrowserStackConfig@0
+    inputs:
+      BrowserStackServiceEndPoint: 'browserstack-connection-yashvi'
+
+  # Run ONE Android test on BrowserStack
+  - script: |
+      cd android
+      npm run test
+    displayName: Run Android test on BrowserStack
+    env:
+      BROWSERSTACK_USERNAME: $(BROWSERSTACK_USERNAME)
+      BROWSERSTACK_ACCESS_KEY: $(BROWSERSTACK_ACCESS_KEY)
+      BROWSERSTACK_BUILD_NAME: 'Azure-Android-Testng-Demo'
+
+  # Publish results to Azure DevOps
+  - task: BrowserStackResults@1
+    displayName: Publish BrowserStack results
+    inputs:
+      product: 'automate'
+
+
+
+
+
+
+
+
+
