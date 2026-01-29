@@ -1,28 +1,29 @@
 trigger:
-- main   # or your demo branch
-
+- main
 pool:
-  vmImage: 'ubuntu-latest'
-
+ vmImage: 'ubuntu-latest'
 steps:
-# BrowserStack setup
-- task: BrowserStackConfig@0
-  inputs:
-    BrowserStackServiceEndPoint: 'browserstack-connection-yashvi-dedicated'
-
-# Run TestNG suite in parallel on ONE device
-- task: Maven@3
-  displayName: 'Run TestNG parallel suite (single device)'
-  inputs:
-    mavenPomFile: 'pom.xml'
-    goals: 'clean test'
-    options: >
-      -P bstack-parallel
-      -Dbrowserstack.config=src/test/resources/conf/capabilities/browserstack-parallel.yml
-      -X
-  
-# Publish BrowserStack App Automate results
-- task: BrowserStackResults@1
-  displayName: 'Publish BrowserStack App Automate results'
-  inputs:
-    product: 'automate'
+- script: |
+   response=$(curl -u $(BROWSERSTACK_USERNAME):$(BROWSERSTACK_ACCESS_KEY) -X POST https://lcnc-api.browserstack.com/api/v1/test-suite/d5115669e729d35e6ffd81392649c85b44b4577b/run)
+   BUILD_ID=$(echo $response | jq -r '.build_id')
+   echo "Build ID: $BUILD_ID"
+   displayName: 'Trigger Test Suite'
+- script: |
+   buildStatus=""
+   retryInterval=30
+   while [[ ("$buildStatus" != "passed" && "$buildStatus" != "failed") ]]; do
+     response=$(curl -u $(BROWSERSTACK_USERNAME):$(BROWSERSTACK_ACCESS_KEY) -s https://lcnc-api.browserstack.com/api/v1/builds/${BUILD_ID}/status)
+     buildStatus=$(echo $response | jq -r '.build_status')
+     sleep $retryInterval
+   done
+   if [[ "$buildStatus" == "passed" ]]; then
+     echo "Build passed"
+     # Add further steps for actions to be taken if build passed
+   elif [[ "$buildStatus" == "failed" ]]; then
+     echo "Build failed"
+     exit 1
+   else
+     echo "Build status unstable"
+     exit 1
+   fi
+   displayName: 'Check Build Status'
