@@ -18,6 +18,8 @@ steps:
     
     echo "Build ID: $BUILD_ID"
 
+    echo "##vso[task.setvariable variable=BUILD_ID]$BUILD_ID"
+
   displayName: 'Trigger Test Suite'
   env:
     BS_USER: $(BROWSERSTACK_USERNAME) # Map variable from Library
