@@ -1,5 +1,8 @@
+trigger:
+- main
+
 variables:
-- group: Demo Credentials
+- group: "Demo Credentials" #
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -7,37 +10,58 @@ pool:
 steps:
 - checkout: none
 
-- bash: |
-    # 1. Trigger the suite
-    response=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
-      -X POST "https://lcnc-api.browserstack.com/api/v1/test-suite/d5115669e729d35e6ffd81392649c85b44b4577b/run")
+- script: |
+    # Using your document's API structure with added debug output
+    response=$(curl -u "$BS_USER:$BS_KEY" -X POST "https://lcnc-api.browserstack.com/api/v1/test-suite/d5115669e729d35e6ffd81392649c85b44b4577b/run")
+    
+    echo "DEBUG: Trigger Response: $response" # Help diagnose 'null' issues
     
     BUILD_ID=$(echo $response | jq -r '.build_id')
-    echo "##vso[task.setvariable variable=BUILD_ID]$BUILD_ID" # Saves ID for next step
+    
+    if [ "$BUILD_ID" == "null" ] || [ -z "$BUILD_ID" ]; then
+      echo "##[error]Trigger failed! See response above."
+      exit 1
+    fi
+    
+    echo "Build ID: $BUILD_ID"
+    # Essential for the 'Check Build Status' step to access this ID
+    echo "##vso[task.setvariable variable=BUILD_ID]$BUILD_ID" 
   displayName: 'Trigger Test Suite'
   env:
     BS_USER: $(BROWSERSTACK_USERNAME) # Map secret from Library
     BS_KEY: $(BROWSERSTACK_ACCESS_KEY)   # Map secret from Library
 
-- bash: |
-    # 2. Fetch the build status
+- script: |
     buildStatus=""
-    while [[ "$buildStatus" != "passed" && "$buildStatus" != "failed" && "$buildStatus" != "error" ]]; do
+    retryInterval=30
+    
+    while [[ ("$buildStatus" != "passed" && "$buildStatus" != "failed") ]]; do
       echo "Waiting for tests... (Current: ${buildStatus:-running})"
-      sleep 30
+      sleep $retryInterval
       
-      # Use the Reports API to check status
-      response=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" -s "https://lcnc-api.browserstack.com/api/v1/builds/$(BUILD_ID)/status")
-      buildStatus=$(echo $response | jq -r '.status')
+      # Status API call
+      response=$(curl -u "$BS_USER:$BS_KEY" -s "https://lcnc-api.browserstack.com/api/v1/builds/$(BUILD_ID)/status")
+      
+      echo "DEBUG: Status Response: $response" # Help diagnose loop issues
+      
+      buildStatus=$(echo $response | jq -r '.build_status')
+      
+      # Safety break if status remains null after several tries
+      if [ "$buildStatus" == "null" ]; then
+         echo "Status returned null. Checking again..."
+      fi
     done
 
     if [[ "$buildStatus" == "passed" ]]; then
-      echo "Success: Build Passed"
+      echo "Build passed"
+    elif [[ "$buildStatus" == "failed" ]]; then
+      echo "Build failed"
+      exit 1
     else
-      echo "Failure: Build Status is $buildStatus"
-      exit 1 # Fails the Azure Pipeline
+      echo "Build status unstable: $buildStatus"
+      exit 1
     fi
-  displayName: 'Fetch Build Status'
+  displayName: 'Check Build Status'
   env:
-    BS_USER: $(BROWSERSTACK_USERNAME) # Map again for this task
-    BS_KEY: $(BROWSERSTACK_ACCESS_KEY)   # Map again for this task
+    BS_USER: $(BROWSERSTACK_USERNAME)
+    BS_KEY: $(BROWSERSTACK_ACCESS_KEY)
