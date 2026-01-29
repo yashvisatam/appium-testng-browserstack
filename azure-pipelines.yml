@@ -12,7 +12,7 @@ steps:
 
 - script: |
     # Using your document's API structure with added debug output
-    response=$(curl -u "$BS_USER:$BS_KEY" -X POST "https://lcnc-api.browserstack.com/api/v1/test-suite/$TS_ID/run")
+    response=$(curl -u "$BS_USER:$BS_KEY" -X POST "https://lcnc-api.browserstack.com/api/v1/test-suite/6e312dc74ce38113d8eaad0a0c3edf075c9f1609/run")
     
     # echo "DEBUG: Trigger Response: $response" # Help diagnose 'null' issues
     
@@ -65,4 +65,4 @@ steps:
   env:
     BS_USER: $(BROWSERSTACK_USERNAME)
     BS_KEY: $(BROWSERSTACK_ACCESS_KEY)
-    TS_ID: $(TEST_SUITE_ID)
+    
