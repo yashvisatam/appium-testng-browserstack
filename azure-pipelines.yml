@@ -2,7 +2,7 @@ trigger:
 - main
 
 variables:
-- group: "Demo Credentials" #
+- group: "Demo Credentials" # variable group name
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -11,21 +11,13 @@ steps:
 - checkout: none
 
 - script: |
-    # Using your document's API structure with added debug output
+
     response=$(curl -u "$BS_USER:$BS_KEY" -X POST "https://lcnc-api.browserstack.com/api/v1/test-suite/$TS_ID/run")
-    
-    # echo "DEBUG: Trigger Response: $response" # Help diagnose 'null' issues
     
     BUILD_ID=$(echo $response | jq -r '.build_id')
     
-    #if [ "$BUILD_ID" == "null" ] || [ -z "$BUILD_ID" ]; then
-     # echo "##[error]Trigger failed! See response above."
-      #exit 1
-    #fi
-    
     echo "Build ID: $BUILD_ID"
-    # Essential for the 'Check Build Status' step to access this ID
-    #echo "##vso[task.setvariable variable=BUILD_ID]$BUILD_ID" 
+
   displayName: 'Trigger Test Suite'
   env:
     BS_USER: $(BROWSERSTACK_USERNAME) # Map variable from Library
@@ -40,17 +32,10 @@ steps:
       echo "Waiting for tests... (Current: ${buildStatus:-running})"
       sleep $retryInterval
       
-      # Status API call
       response=$(curl -u "$BS_USER:$BS_KEY" -s "https://lcnc-api.browserstack.com/api/v1/builds/$(BUILD_ID)/status")
-      
-      #echo "DEBUG: Status Response: $response" # Help diagnose loop issues
       
       buildStatus=$(echo $response | jq -r '.build_status')
       
-      # Safety break if status remains null after several tries
-      #if [ "$buildStatus" == "null" ]; then
-        # echo "Status returned null. Checking again..."
-      #fi
     done
 
     if [[ "$buildStatus" == "passed" ]]; then
