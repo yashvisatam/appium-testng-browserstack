@@ -10,7 +10,7 @@ steps:
 - bash: |
     # 1. Trigger the suite
     response=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
-      -X POST "https://lcnc-api.browserstack.com/api/v1/test-suites/d5115669e729d35e6ffd81392649c85b44b4577b/trigger")
+      -X POST "https://lcnc-api.browserstack.com/api/v1/test-suite/d5115669e729d35e6ffd81392649c85b44b4577b/run")
     
     BUILD_ID=$(echo $response | jq -r '.build_id')
     echo "##vso[task.setvariable variable=BUILD_ID]$BUILD_ID" # Saves ID for next step
@@ -27,7 +27,7 @@ steps:
       sleep 30
       
       # Use the Reports API to check status
-      response=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" -s "https://lcnc-api.browserstack.com/api/v1/builds/$(BUILD_ID)/report?type=standard")
+      response=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" -s "https://lcnc-api.browserstack.com/api/v1/builds/$(BUILD_ID)/status")
       buildStatus=$(echo $response | jq -r '.status')
     done
 
