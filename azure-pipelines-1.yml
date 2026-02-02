@@ -1,0 +1,57 @@
+trigger:
+- main
+
+variables:
+- group: "Demo Credentials"
+
+jobs:
+- job: Run_LCA_Suites
+  strategy:
+    matrix:
+      # Define your different suites here
+      hennepin_county_Suite:
+        TS_ID: '6e312dc74ce38113d8eaad0a0c3edf075c9f1609'
+      Bstack_add_to_cart_Suite:
+        TS_ID: 'd5115669e729d35e6ffd81392649c85b44b4577b'
+      dealhub_element_not_interactable_Suite:
+        TS_ID: '45595a7adaf2363c576a172aeca2592c4a64b7ce'
+    maxParallel: 3 # Adjust based on your BrowserStack parallel limit
+
+  pool:
+    vmImage: 'ubuntu-latest'
+
+  steps:
+  - checkout: none
+
+  - script: |
+      # Using the TS_ID from the matrix
+      response=$(curl -u "$BS_USER:$BS_KEY" -X POST "https://lcnc-api.browserstack.com/api/v1/test-suite/$TS_ID/run")
+      
+      BUILD_ID=$(echo $response | jq -r '.build_id')
+      echo "Build ID: $BUILD_ID"
+      echo "##vso[task.setvariable variable=BUILD_ID]$BUILD_ID"
+    displayName: 'Trigger Test Suite'
+    env:
+      BS_USER: $(BROWSERSTACK_USERNAME)
+      BS_KEY: $(BROWSERSTACK_ACCESS_KEY)
+
+  - script: |
+      buildStatus=""
+      retryInterval=30
+      while [[ ("$buildStatus" != "passed" && "$buildStatus" != "failed") ]]; do
+        echo "Waiting for tests... (Current: ${buildStatus:-running})"
+        sleep $retryInterval
+        response=$(curl -u "$BS_USER:$BS_KEY" -s "https://lcnc-api.browserstack.com/api/v1/builds/$(BUILD_ID)/status")
+        buildStatus=$(echo $response | jq -r '.build_status')
+      done
+
+      if [[ "$buildStatus" == "passed" ]]; then
+        echo "Build passed"
+      else
+        echo "Build failed with status: $buildStatus"
+        exit 1
+      fi
+    displayName: 'Check Build Status'
+    env:
+      BS_USER: $(BROWSERSTACK_USERNAME)
+      BS_KEY: $(BROWSERSTACK_ACCESS_KEY)
