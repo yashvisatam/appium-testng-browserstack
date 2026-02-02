@@ -73,7 +73,7 @@ steps:
       exit 0
     fi
 
-  displayName: 'Sequential BrowserStack Suite Execution'
+  displayName: 'Multiple LCA Test Suites Execution'
   env:
     BS_USER: $(BROWSERSTACK_USERNAME) # From Variable Group
     BS_KEY: $(BROWSERSTACK_ACCESS_KEY) # From Variable Group
