@@ -1,0 +1,70 @@
+trigger:
+- main
+
+variables:
+- group: "Demo Credentials"
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- checkout: none
+
+- script: |
+    # Define your Test Suite IDs
+    SUITE_IDS=("6e312dc74ce38113d8eaad0a0c3edf075c9f1609" "d5115669e729d35e6ffd81392649c85b44b4577b" "45595a7adaf2363c576a172aeca2592c4a64b7ce")
+    
+    # Track if any suite fails
+    ANY_FAILURE=false
+
+    for TS_ID in "${SUITE_IDS[@]}"; do
+      echo "===================================================="
+      echo "STARTING TEST SUITE: $TS_ID"
+      echo "===================================================="
+      
+      # Trigger the Build
+      response=$(curl -u "$BS_USER:$BS_KEY" -X POST "https://lcnc-api.browserstack.com/api/v1/test-suite/$TS_ID/run")
+      BUILD_ID=$(echo $response | jq -r '.build_id')
+      
+      if [[ "$BUILD_ID" == "null" || -z "$BUILD_ID" ]]; then
+        echo "Error: Failed to trigger suite $TS_ID. Response: $response"
+        ANY_FAILURE=true
+        continue # Move to the next suite instead of exiting
+      fi
+      
+      echo "Build successfully triggered! ID: $BUILD_ID"
+
+      # Poll for Status
+      buildStatus=""
+      retryInterval=30
+      
+      while [[ ("$buildStatus" != "passed" && "$buildStatus" != "failed") ]]; do
+        echo "Waiting for $TS_ID results... (Current Status: ${buildStatus:-running})"
+        sleep $retryInterval
+        
+        statusResponse=$(curl -u "$BS_USER:$BS_KEY" -s "https://lcnc-api.browserstack.com/api/v1/builds/$BUILD_ID/status")
+        buildStatus=$(echo $statusResponse | jq -r '.build_status')
+      done
+
+      # Check status but do NOT exit yet
+      if [[ "$buildStatus" == "passed" ]]; then
+        echo "SUCCESS: Suite $TS_ID passed."
+      else
+        echo "FAILURE: Suite $TS_ID failed with status: $buildStatus"
+        ANY_FAILURE=true
+      fi
+    done
+
+    # Final exit code based on overall results
+    if [ "$ANY_FAILURE" = true ]; then
+      echo "One or more test suites failed. Failing pipeline step."
+      exit 1
+    else
+      echo "All test suites passed successfully!"
+      exit 0
+    fi
+
+  displayName: 'Multiple BrowserStack Suite Execution'
+  env:
+    BS_USER: $(BROWSERSTACK_USERNAME)
+    BS_KEY: $(BROWSERSTACK_ACCESS_KEY)
