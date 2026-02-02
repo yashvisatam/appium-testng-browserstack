@@ -1,0 +1,80 @@
+trigger:
+- main
+
+variables:
+- group: "Demo Credentials" # Ensure this matches your Library group name
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- checkout: none
+
+- script: |
+    # Check if the variable exists and is not empty
+    if [ -z "$TS_LIST" ]; then
+      echo "ERROR: TEST_SUITE_LIST is empty. Please check your Variable Group."
+      exit 1
+    fi
+
+    # Convert comma-separated string from Azure Library to a Bash array
+    IFS=',' read -ra SUITE_IDS <<< "$TS_LIST"
+    
+    # Flag to track if any suite fails
+    ANY_FAILURE=false
+
+    for TS_ID in "${SUITE_IDS[@]}"; do
+      # Clean up potential leading/trailing spaces from the variable
+      TS_ID=$(echo $TS_ID | xargs)
+      
+      echo "============================================================="
+      echo "STARTING TEST SUITE: $TS_ID"
+      echo "============================================================="
+      
+      # Trigger the Build via API
+      response=$(curl -u "$BS_USER:$BS_KEY" -X POST "https://lcnc-api.browserstack.com/api/v1/test-suite/$TS_ID/run")
+      BUILD_ID=$(echo $response | jq -r '.build_id')
+      
+      if [[ "$BUILD_ID" == "null" || -z "$BUILD_ID" ]]; then
+        echo "Error: Failed to trigger suite $TS_ID. API Response: $response"
+        ANY_FAILURE=true
+        continue # move to next suite in the list
+      fi
+      
+      echo "Build successfully triggered! ID: $BUILD_ID"
+
+      # Poll for Status until completion
+      buildStatus=""
+      retryInterval=30
+      
+      while [[ ("$buildStatus" != "passed" && "$buildStatus" != "failed") ]]; do
+        echo "Waiting for $TS_ID results... (Current Status: ${buildStatus:-running})"
+        sleep $retryInterval
+        
+        statusResponse=$(curl -u "$BS_USER:$BS_KEY" -s "https://lcnc-api.browserstack.com/api/v1/builds/$BUILD_ID/status")
+        buildStatus=$(echo $statusResponse | jq -r '.build_status')
+      done
+
+      # Evaluate results without stopping the loop
+      if [[ "$buildStatus" == "passed" ]]; then
+        echo "SUCCESS: Suite $TS_ID passed."
+      else
+        echo "FAILURE: Suite $TS_ID failed with status: $buildStatus"
+        ANY_FAILURE=true
+      fi
+    done
+
+    # Final Pipeline Outcome
+    if [ "$ANY_FAILURE" = true ]; then
+      echo "Pipeline completed: One or more suites failed."
+      exit 1
+    else
+      echo "Pipeline completed: All suites passed!"
+      exit 0
+    fi
+
+  displayName: 'Sequential BrowserStack Suite Execution'
+  env:
+    BS_USER: $(BROWSERSTACK_USERNAME) # From Variable Group
+    BS_KEY: $(BROWSERSTACK_ACCESS_KEY) # From Variable Group
+    TS_LIST: $(TEST_SUITE_IDS_LIST)       # From Variable Group
